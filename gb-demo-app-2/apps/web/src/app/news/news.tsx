@@ -17,14 +17,12 @@ export function News(props: NewsProps) {
   //   return news.sort((a, b) => a.createdAt - b.createdAt)
   // }
 
-  // const sortNews = useMemo(() => {
-  //   return news.sort((a, b) => a.createdAt - b.createdAt)
-  // }, [a, b])
+  const s = (a: PeaceOfNews[], b: PeaceOfNews[]) => {
+    return news.sort((a, b) => a.createdAt - b.createdAt)
+  }
 
-
-  const sortNews = useCallback(() => {
-    setNews(news.sort((a, b) => a.createdAt - b.createdAt));
-  }, [a,b]);
+  // use useMemo to cache things
+  function sortNews(news: PeaceOfNews[]) { return useMemo(() => s(news, news), [news]) }
 
 
 
