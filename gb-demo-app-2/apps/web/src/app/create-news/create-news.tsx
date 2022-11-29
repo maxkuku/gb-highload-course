@@ -1,6 +1,8 @@
 import './create-news.module.scss';
 import React, { ChangeEvent } from 'react';
 
+
+
 /* eslint-disable-next-line */
 export interface CreateNewsProps {}
 export interface CreateNewsState {
@@ -51,18 +53,18 @@ class CreateNews extends React.Component<CreateNewsProps, Partial<CreateNewsStat
     return (
       <form onSubmit={this.handleSubmit}>
         <h1>Создание новости</h1>
-        <p>
+        <div>
           <label>
             <h4>Заголовок</h4>
             <input required name="title" type="text" value={this.state.title} onChange={this.handleChange} />
           </label>
-        </p>
-        <p>
+        </div>
+        <div>
           <label>
             <h4>Текст</h4>
             <textarea required name="description" value={this.state.description} onChange={this.handleChange} />
           </label>
-        </p>
+        </div>
         <input type="submit" value="Добавить" />
       </form>
     );
