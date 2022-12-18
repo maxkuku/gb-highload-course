@@ -34,6 +34,9 @@ export class NewsController {
     });
   }
 
+
+  
+
   @Post()
   @Header('Cache-Control', 'none')
   create(@Body() peaceOfNews: CreateNewsDto) {

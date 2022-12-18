@@ -35,7 +35,8 @@ class CreateNews extends React.Component<CreateNewsProps, Partial<CreateNewsStat
 
 
     fetch('http://localhost:3333/api/news', {
-      method: 'POST',
+      method: 'POST', 
+      // mode: 'no-cors',
       headers: {
         'Content-Type': 'application/json',
       },
