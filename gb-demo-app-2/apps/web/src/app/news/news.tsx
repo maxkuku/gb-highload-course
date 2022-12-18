@@ -1,5 +1,5 @@
 import './news.module.scss';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 /* eslint-disable-next-line */
 export interface NewsProps {}
@@ -12,16 +12,28 @@ export interface PeaceOfNews {
 
 export function News(props: NewsProps) {
   const [news, setNews] = useState([] as PeaceOfNews[]);
-  const sortNews = (news: PeaceOfNews[]) => {
+
+  // const sortNews = (news: PeaceOfNews[]) => {
+  //   return news.sort((a, b) => a.createdAt - b.createdAt)
+  // }
+
+  const s = (a: PeaceOfNews[], b: PeaceOfNews[]) => {
     return news.sort((a, b) => a.createdAt - b.createdAt)
   }
 
+  // use useMemo to cache things
+  function sortNews(news: PeaceOfNews[]) { return useMemo(() => s(news, news), [news]) }
+
+
+
   useEffect(() => {
+    // fetch('http://localhost:3333/api/news', { mode: 'no-cors'})
     fetch('http://localhost:3333/api/news')
       .then(response => response.json())
       .then(news => {
+        console.time('sorting');
         const sortedNews = sortNews(news);
-
+        console.timeEnd('sorting');
         setNews(sortedNews);
       })
   }, []);
