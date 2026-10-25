@@ -1,0 +1,68 @@
+services:
+  redis-master:
+    image: redis:7.2-alpine
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - ./gb-demo-redis/redis-master.conf:/usr/local/etc/redis/redis.conf:ro
+      - redis-master-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+
+  redis-replica:
+    image: redis:7.2-alpine
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - ./gb-demo-redis/redis-slave.conf:/usr/local/etc/redis/redis.conf:ro
+      - redis-replica-data:/data
+    depends_on:
+      redis-master:
+        condition: service_healthy
+
+  sentinel-1: &sentinel
+    image: redis:7.2-alpine
+    command:
+      - sh
+      - -c
+      - cp /etc/redis/sentinel.conf /tmp/sentinel.conf && exec redis-sentinel /tmp/sentinel.conf
+    volumes:
+      - ./gb-demo-redis/redis-sentinel-1.conf:/etc/redis/sentinel.conf:ro
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-replica:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+
+  sentinel-2:
+    <<: *sentinel
+
+  sentinel-3:
+    <<: *sentinel
+
+  app:
+    build: .
+    environment:
+      PORT: 3001
+      CACHE_TTL: 30
+      REDIS_MASTER_NAME: mymaster
+      REDIS_SENTINELS: sentinel-1:26379,sentinel-2:26379,sentinel-3:26379
+    ports:
+      - "3001:3001"
+    depends_on:
+      sentinel-1:
+        condition: service_healthy
+      sentinel-2:
+        condition: service_healthy
+      sentinel-3:
+        condition: service_healthy
+
+volumes:
+  redis-master-data:
+  redis-replica-data:

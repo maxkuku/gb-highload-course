@@ -1,5 +1,6 @@
 import './create-news.module.scss';
 import React, { ChangeEvent } from 'react';
+import { environment } from '../../environments/environment';
 
 /* eslint-disable-next-line */
 export interface CreateNewsProps {}
@@ -27,14 +28,19 @@ class CreateNews extends React.Component<CreateNewsProps, Partial<CreateNewsStat
   handleSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    fetch('http://localhost:3001/api/news', {
+    fetch(`${environment.apiUrl}/news`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(this.state),
     })
-      .then(response => response.json())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+      })
       .then(data => {
         alert(this.state.title + ' успешно создана!');
         this.setState({
@@ -51,18 +57,18 @@ class CreateNews extends React.Component<CreateNewsProps, Partial<CreateNewsStat
     return (
       <form onSubmit={this.handleSubmit}>
         <h1>Создание новости</h1>
-        <p>
+        <div>
           <label>
-            <h4>Заголовок</h4>
+            <strong>Заголовок</strong>
             <input required name="title" type="text" value={this.state.title} onChange={this.handleChange} />
           </label>
-        </p>
-        <p>
+        </div>
+        <div>
           <label>
-            <h4>Текст</h4>
+            <strong>Текст</strong>
             <textarea required name="description" value={this.state.description} onChange={this.handleChange} />
           </label>
-        </p>
+        </div>
         <input type="submit" value="Добавить" />
       </form>
     );

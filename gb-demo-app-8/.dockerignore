@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+.nx
+.git
+.DS_Store
+gb-demo-redis/dump.rdb
+gb-demo-redis/cluster-nodes-*.conf
+npm-debug.log

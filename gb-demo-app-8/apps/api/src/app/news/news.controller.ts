@@ -1,62 +1,62 @@
-import { Body, Controller, Get, Header, Post, Param } from '@nestjs/common';
-import { IsNotEmpty } from 'class-validator';
-import memjs from 'memjs';
-import Redis from 'ioredis';
-
-
-const memcached = memjs.Client.create();
-const redis = new Redis();
+import { Body, Controller, Get, Header, Post } from '@nestjs/common';
+import { IsNotEmpty, IsString } from 'class-validator';
+import { CacheService } from './cache.service';
 
 export class CreateNewsDto {
+  @IsString()
   @IsNotEmpty()
   title: string;
 
+  @IsString()
   @IsNotEmpty()
   description: string;
 }
 
+export interface NewsItem extends CreateNewsDto {
+  id: number;
+  createdAt: number;
+}
+
 @Controller('news')
 export class NewsController {
-  @Get()
-  async getNews() {
-    return new Promise(resolve => {
-      const news = Object.keys([...Array(20)])
-        .map(key => Number(key) + 1)
-        .map(n => ({
-          id: n,
-          title: `Важная новость ${n}`,
-          description: (rand => ([...Array(rand(1000))].map(() => rand(10**16).toString(36).substring(rand(10))).join(' ')))(max => Math.ceil(Math.random() * max)),
-          createdAt: Date.now()
-        }))
+  private readonly cacheKey = 'news:list:v1';
+  private readonly createdNews: NewsItem[] = [];
 
-      setTimeout(() => {
-        resolve(news);
-      }, 100)
-    });
+  constructor(private readonly cache: CacheService) {}
+
+  @Get()
+  async getNews(): Promise<NewsItem[]> {
+    const cached = await this.cache.get<NewsItem[]>(this.cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const generated = Array.from({ length: 20 }, (_, index) => ({
+      id: index + 1,
+      title: `Важная новость ${index + 1}`,
+      description: `Описание новости ${index + 1}`,
+      createdAt: Date.now() - index * 1000,
+    }));
+    const news = [...this.createdNews, ...generated];
+    await this.cache.set(this.cacheKey, news, Number(process.env.CACHE_TTL || 30));
+    return news;
   }
 
   @Post()
-  @Header('Cache-Control', 'none')
-  create(@Body() peaceOfNews: CreateNewsDto) {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        console.log('Новость успешно создана', peaceOfNews);
-        resolve({ id: Math.ceil(Math.random() * 1000), ...peaceOfNews });
-      }, 100)
-    });
+  @Header('Cache-Control', 'no-store')
+  async create(@Body() item: CreateNewsDto): Promise<NewsItem> {
+    const news = {
+      id: Date.now(),
+      ...item,
+      createdAt: Date.now(),
+    };
+    this.createdNews.unshift(news);
+    await this.cache.delete(this.cacheKey);
+    return news;
   }
 
-  @Get('test-memcached/:searchtext')
-  async testMemcached(@Param('searchtext') searchtext: string) {
-    memcached.set("foo", searchtext, 10);
-
-    return await memcached.get("foo").then(a => a.value.toString());
-  }
-
-  @Get('test-redis/:searchtext')
-  async testRedis(@Param('searchtext') searchtext: string) {
-    redis.set("foo", searchtext);
-
-    return await redis.get("foo");
+  @Get('cache/health')
+  async cacheHealth() {
+    return { status: await this.cache.ping() };
   }
 }

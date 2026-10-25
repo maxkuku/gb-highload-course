@@ -1,5 +1,6 @@
 import './news.module.scss';
 import { useEffect, useState } from 'react';
+import { environment } from '../../environments/environment';
 
 /* eslint-disable-next-line */
 export interface NewsProps {}
@@ -17,7 +18,7 @@ export function News(props: NewsProps) {
   }
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/news')
+    fetch(`${environment.apiUrl}/news`)
       .then(response => response.json())
       .then(news => {
         console.time('sorting');

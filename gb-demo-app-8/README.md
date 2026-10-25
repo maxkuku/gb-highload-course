@@ -1,94 +1,95 @@
+# Highload News Demo — этап 8
 
+Учебное full-stack приложение на NestJS, React и Nx. Этот этап демонстрирует
+кеширование списка новостей в отказоустойчивом Redis с автоматическим
+переключением master через Sentinel.
 
-# GbDemoApp
+## Архитектура
 
-This project was generated using [Nx](https://nx.dev).
+- `web` — React-интерфейс;
+- `api` — NestJS API и раздача production-сборки frontend;
+- `redis-master` и `redis-replica` — основное хранилище кеша и реплика;
+- три Sentinel — обнаружение master и quorum для failover;
+- Redis недоступен — API продолжает работать без кеша.
 
-<p style="text-align: center;"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="450"></p>
+Созданные новости хранятся в памяти процесса. Redis кеширует результат
+`GET /api/news` на 30 секунд; `POST /api/news` инвалидирует этот кеш. Это
+намеренно учебная модель, а не замена постоянной базе данных.
 
-🔎 **Smart, Fast and Extensible Build System**
+## Быстрый запуск в Docker
 
-## Adding capabilities to your workspace
+Требуются Docker и Docker Compose.
 
-Nx supports many plugins which add capabilities for developing different types of applications and different tools.
+```bash
+docker compose up --build
+```
 
-These capabilities include generating applications, libraries, etc as well as the devtools to test, and build projects as well.
+После запуска приложение доступно на <http://localhost:3001>, API — на
+<http://localhost:3001/api/news>.
 
-Below are our core plugins:
+Проверка Sentinel и кеша:
 
-- [React](https://reactjs.org)
-  - `npm install --save-dev @nrwl/react`
-- Web (no framework frontends)
-  - `npm install --save-dev @nrwl/web`
-- [Angular](https://angular.io)
-  - `npm install --save-dev @nrwl/angular`
-- [Nest](https://nestjs.com)
-  - `npm install --save-dev @nrwl/nest`
-- [Express](https://expressjs.com)
-  - `npm install --save-dev @nrwl/express`
-- [Node](https://nodejs.org)
-  - `npm install --save-dev @nrwl/node`
+```bash
+curl http://localhost:3001/api/news/cache/health
+docker compose exec sentinel-1 redis-cli -p 26379 sentinel master mymaster
+```
 
-There are also many [community plugins](https://nx.dev/community) you could add.
+Проверка failover:
 
-## Generate an application
+```bash
+docker compose stop redis-master
+docker compose exec sentinel-1 redis-cli -p 26379 get-master-addr-by-name mymaster
+curl http://localhost:3001/api/news
+```
 
-Run `nx g @nrwl/react:app my-app` to generate an application.
+Sentinel выбирает реплику новым master. Возврат старого контейнера:
 
-> You can use any of the plugins above to generate applications as well.
+```bash
+docker compose start redis-master
+```
 
-When using Nx, you can create multiple applications and libraries in the same workspace.
+Остановка с сохранением данных: `docker compose down`. Полное удаление
+именованных томов: `docker compose down -v`.
 
-## Generate a library
+## Локальная разработка
 
-Run `nx g @nrwl/react:lib my-lib` to generate a library.
+Проект зафиксирован на совместимой связке Node.js 16, Nx 13 и TypeScript 4.4.
 
-> You can also use any of the plugins above to generate libraries as well.
+```bash
+npm ci --legacy-peer-deps
+npm run start
+```
 
-Libraries are shareable across libraries and applications. They can be imported from `@gb-demo-app/mylib`.
+Frontend запускается на <http://localhost:3002>, API — на порту `3001`.
+Без переменных окружения API ищет обычный Redis на `127.0.0.1:6379`, но при
+его отсутствии также продолжает работать.
 
-## Development server
+Поддерживаемые переменные:
 
-Run `nx serve my-app` for a dev server. Navigate to http://localhost:4200/. The app will automatically reload if you change any of the source files.
+| Переменная | Значение по умолчанию |
+|---|---|
+| `PORT` | `3001` |
+| `CACHE_TTL` | `30` |
+| `REDIS_HOST` | `127.0.0.1` |
+| `REDIS_PORT` | `6379` |
+| `REDIS_SENTINELS` | пусто, формат `host:port,host:port` |
+| `REDIS_MASTER_NAME` | `mymaster` |
 
-## Code scaffolding
+## Команды
 
-Run `nx g @nrwl/react:component my-component --project=my-app` to generate a new component.
+```bash
+npm run test       # unit-тесты API и frontend
+npm run test:api
+npm run test:web
+npm run build      # production-сборка обоих приложений
+```
 
-## Build
+## API
 
-Run `nx build my-app` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `--prod` flag for a production build.
+- `GET /api/news` — список новостей;
+- `POST /api/news` — создание новости (`title`, `description`);
+- `GET /api/news/cache/health` — проверка соединения с Redis master.
 
-## Running unit tests
-
-Run `nx test my-app` to execute the unit tests via [Jest](https://jestjs.io).
-
-Run `nx affected:test` to execute the unit tests affected by a change.
-
-## Running end-to-end tests
-
-Run `ng e2e my-app` to execute the end-to-end tests via [Cypress](https://www.cypress.io).
-
-Run `nx affected:e2e` to execute the end-to-end tests affected by a change.
-
-## Understand your workspace
-
-Run `nx dep-graph` to see a diagram of the dependencies of your projects.
-
-## Further help
-
-Visit the [Nx Documentation](https://nx.dev) to learn more.
-
-
-
-## ☁ Nx Cloud
-
-### Distributed Computation Caching & Distributed Task Execution
-
-<p style="text-align: center;"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-cloud-card.png"></p>
-
-Nx Cloud pairs with Nx in order to enable you to build and test code more rapidly, by up to 10 times. Even teams that are new to Nx can connect to Nx Cloud and start saving time instantly.
-
-Teams using Nx gain the advantage of building full-stack applications with their preferred framework alongside Nx’s advanced code generation and project dependency graph, plus a unified experience for both frontend and backend developers.
-
-Visit [Nx Cloud](https://nx.app/) to learn more.
+Конфигурации `redis-cluster-6001.conf` … `redis-cluster-6006.conf` сохранены
+как материал отдельного эксперимента с Redis Cluster. Production-сценарий
+этого этапа использует Sentinel; одновременно эти режимы не запускаются.
